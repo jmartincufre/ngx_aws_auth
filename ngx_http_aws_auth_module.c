@@ -16,6 +16,8 @@ static void* ngx_http_aws_auth_create_loc_conf(ngx_conf_t *cf);
 static char* ngx_http_aws_auth_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static ngx_int_t register_variable(ngx_conf_t *cf);
 static char *
+ngx_http_aws_auth_set_access_key(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *
 ngx_http_aws_auth_set_secret_key(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *
 ngx_http_aws_auth_set_s3_bucket(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -66,7 +68,7 @@ static const char *signed_subresources[] = {
 static ngx_command_t  ngx_http_aws_auth_commands[] = {
     { ngx_string("aws_access_key"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      ngx_http_aws_auth_set_access_key,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_aws_auth_conf_t, access_key),
       NULL },
@@ -124,6 +126,45 @@ ngx_module_t  ngx_http_aws_auth_module = {
     NULL,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
+
+static char *
+ngx_http_aws_auth_set_access_key(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_aws_auth_conf_t *aws_conf = conf;
+    ngx_http_script_compile_t   sc;
+    ngx_str_t *value;
+    ngx_uint_t n;
+    value = cf->args->elts;
+    n = ngx_http_script_variables_count(&value[1]);
+
+    if (n == 0) {
+        // set secret key as string
+        aws_conf->access_key.data = value[1].data;
+        aws_conf->access_key.len  = value[1].len;
+    }
+    // else {
+    //     //add script to compile
+    //     aws_conf->s3_bucket_script = ngx_pcalloc(cf->pool, sizeof(ngx_http_aws_auth_script_t));
+    //     if (aws_conf->s3_bucket_script == NULL) {
+    //         return NGX_CONF_ERROR;
+    //     }
+    //
+    //     ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
+    //
+    //     sc.cf = cf;
+    //     sc.source = &value[1];
+    //     sc.lengths = &aws_conf->s3_bucket_script->lengths;
+    //     sc.values = &aws_conf->s3_bucket_script->values;
+    //     sc.variables = n;
+    //     sc.complete_lengths = 1;
+    //     sc.complete_values = 1;
+    //
+    //     if (ngx_http_script_compile(&sc) != NGX_OK) {
+    //         return NGX_CONF_ERROR;
+        // }
+    // }
+    return NGX_CONF_OK;
+}
 
 static char *
 ngx_http_aws_auth_set_secret_key(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
