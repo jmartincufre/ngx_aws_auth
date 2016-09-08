@@ -34,6 +34,8 @@ typedef struct {
     ngx_str_t secret;
     ngx_str_t s3_bucket;
     ngx_str_t chop_prefix;
+    ngx_http_aws_auth_script_t *access_key_script;
+    ngx_http_aws_auth_script_t *secret_script;
     ngx_http_aws_auth_script_t *s3_bucket_script;
     ngx_http_aws_auth_script_t *chop_prefix_script;
 } ngx_http_aws_auth_conf_t;
@@ -142,27 +144,27 @@ ngx_http_aws_auth_set_access_key(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         aws_conf->access_key.data = value[1].data;
         aws_conf->access_key.len  = value[1].len;
     }
-    // else {
-    //     //add script to compile
-    //     aws_conf->s3_bucket_script = ngx_pcalloc(cf->pool, sizeof(ngx_http_aws_auth_script_t));
-    //     if (aws_conf->s3_bucket_script == NULL) {
-    //         return NGX_CONF_ERROR;
-    //     }
-    //
-    //     ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
-    //
-    //     sc.cf = cf;
-    //     sc.source = &value[1];
-    //     sc.lengths = &aws_conf->s3_bucket_script->lengths;
-    //     sc.values = &aws_conf->s3_bucket_script->values;
-    //     sc.variables = n;
-    //     sc.complete_lengths = 1;
-    //     sc.complete_values = 1;
-    //
-    //     if (ngx_http_script_compile(&sc) != NGX_OK) {
-    //         return NGX_CONF_ERROR;
-        // }
-    // }
+    else {
+        //add script to compile
+        aws_conf->access_key_script = ngx_pcalloc(cf->pool, sizeof(ngx_http_aws_auth_script_t));
+        if (aws_conf->access_key_script == NULL) {
+            return NGX_CONF_ERROR;
+        }
+
+        ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
+
+        sc.cf = cf;
+        sc.source = &value[1];
+        sc.lengths = &aws_conf->access_key_script->lengths;
+        sc.values = &aws_conf->access_key_script->values;
+        sc.variables = n;
+        sc.complete_lengths = 1;
+        sc.complete_values = 1;
+
+        if (ngx_http_script_compile(&sc) != NGX_OK) {
+            return NGX_CONF_ERROR;
+        }
+    }
     return NGX_CONF_OK;
 }
 
@@ -181,27 +183,27 @@ ngx_http_aws_auth_set_secret_key(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         aws_conf->secret.data = value[1].data;
         aws_conf->secret.len  = value[1].len;
     }
-    // else {
-    //     //add script to compile
-    //     aws_conf->s3_bucket_script = ngx_pcalloc(cf->pool, sizeof(ngx_http_aws_auth_script_t));
-    //     if (aws_conf->s3_bucket_script == NULL) {
-    //         return NGX_CONF_ERROR;
-    //     }
-    //
-    //     ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
-    //
-    //     sc.cf = cf;
-    //     sc.source = &value[1];
-    //     sc.lengths = &aws_conf->s3_bucket_script->lengths;
-    //     sc.values = &aws_conf->s3_bucket_script->values;
-    //     sc.variables = n;
-    //     sc.complete_lengths = 1;
-    //     sc.complete_values = 1;
-    //
-    //     if (ngx_http_script_compile(&sc) != NGX_OK) {
-    //         return NGX_CONF_ERROR;
-        // }
-    // }
+    else {
+        //add script to compile
+        aws_conf->secret_script = ngx_pcalloc(cf->pool, sizeof(ngx_http_aws_auth_script_t));
+        if (aws_conf->secret_script == NULL) {
+            return NGX_CONF_ERROR;
+        }
+
+        ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
+
+        sc.cf = cf;
+        sc.source = &value[1];
+        sc.lengths = &aws_conf->secret_script->lengths;
+        sc.values = &aws_conf->secret_script->values;
+        sc.variables = n;
+        sc.complete_lengths = 1;
+        sc.complete_values = 1;
+
+        if (ngx_http_script_compile(&sc) != NGX_OK) {
+            return NGX_CONF_ERROR;
+        }
+    }
     return NGX_CONF_OK;
 }
 
@@ -520,6 +522,20 @@ ngx_http_aws_auth_get_dynamic_variables(ngx_http_request_t *r){
     */
     ngx_http_aws_auth_conf_t *aws_conf;
     aws_conf = ngx_http_get_module_loc_conf(r, ngx_http_aws_auth_module);
+    if (aws_conf->access_key_script != NULL){
+        if (ngx_http_script_run(r, &aws_conf->access_key, aws_conf->access_key_script->lengths->elts, 1,
+                                aws_conf->access_key_script->values->elts) == NULL) {
+            return NGX_ERROR;
+        }
+        aws_conf->access_key.len = aws_conf->access_key.len -1;
+    }
+    if (aws_conf->secret_script != NULL){
+        if (ngx_http_script_run(r, &aws_conf->secret, aws_conf->secret_script->lengths->elts, 1,
+                                aws_conf->secret_script->values->elts) == NULL) {
+            return NGX_ERROR;
+        }
+        aws_conf->secret.len = aws_conf->secret.len -1;
+    }
     if (aws_conf->s3_bucket_script != NULL){
         if (ngx_http_script_run(r, &aws_conf->s3_bucket, aws_conf->s3_bucket_script->lengths->elts, 1,
                                 aws_conf->s3_bucket_script->values->elts) == NULL) {
